@@ -1,0 +1,16 @@
+# Byte-compiled / optimized / DLL files
+**/__pycache__/
+**/*.py[cod]
+*$py.class
+utils/__pycache__/etl_utils.cpython-312.pyc
+.vscode/
+
+# Logs
+*.log
+*.py.log
+airflow/logs/
+
+data
+
+# Sensitive files
+dev_notes.txt
