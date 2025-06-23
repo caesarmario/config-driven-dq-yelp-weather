@@ -146,6 +146,50 @@ with TaskGroup("process_yelp", dag=dag) as process_group:
         process_business >> merge_business
 
 
+    with TaskGroup("review_group", tooltip="Process and merge review data") as review_group:
+        process_review = PythonOperator(
+            task_id="process_review",
+            python_callable=run_processor,
+            op_kwargs={
+                "file_name": "review",
+            },
+            dag=dag,
+        )
+
+        merge_review = PythonOperator(
+            task_id="merge_review",
+            python_callable=run_merger,
+            op_kwargs={
+                "file_name": "review",
+            },
+            dag=dag,
+        )
+
+        process_review >> merge_review
+
+
+    with TaskGroup("user_group", tooltip="Process and merge user data") as user_group:
+        process_user = PythonOperator(
+            task_id="process_user",
+            python_callable=run_processor,
+            op_kwargs={
+                "file_name": "user",
+            },
+            dag=dag,
+        )
+
+        merge_user = PythonOperator(
+            task_id="merge_user",
+            python_callable=run_merger,
+            op_kwargs={
+                "file_name": "user",
+            },
+            dag=dag,
+        )
+
+        process_user >> merge_user
+
+
 # Dummy End
 task_end = EmptyOperator(
     task_id="task_end",

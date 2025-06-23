@@ -17,25 +17,31 @@ class ValidationHelper:
         return series.notna()
         
 
+
     def not_null(self, series):
         return series.notna()
     
 
+
     def precipitation_range(self, series):
         return series.between(0, 500)
     
+
     def negative_precipitation(self, series):
         return series >= 0
     
+
     def fahrenheit_range(self, series):
         return series.between(-100, 150)
     
+
     def min_less_than_max(self, row):
         try:
             return row["min"] <= row["max"]
         except Exception as e:
             logger.error(f"!! Failed min < max validation: {e}")
             return False
+
 
     def normal_min_less_than_max(self, row):
         try:
@@ -44,27 +50,37 @@ class ValidationHelper:
             logger.error(f"!! Failed normal_min < normal_max validation: {e}")
             return False
 
+
     def non_negative(self, series):
         try:
             return series.fillna(0) >= 0
         except Exception as e:
             logger.error(f"!! Failed non_negative validation: {e}")
             return pd.Series([False] * len(series))
-    
-    def check_postal_code_format(self, series):
-        return series.astype(str).str.match(r"^\d{5}$")
+
 
     def validate_latitude(self, series):
         return series.between(-90, 90)
 
+
     def validate_longitude(self, series):
         return series.between(-180, 180)
+
 
     def stars_range_check(self, series):
         return series.between(0, 5)
 
     def boolean_check(self, series):
         return series.isin([0, 1])
+
+
+    def non_negative_pd(self, series: pd.Series) -> pd.Series:
+        return series >= 0
+
+
+    def checking_date_format_pd(self, series: pd.Series) -> pd.Series:
+        return series.apply(lambda x: isinstance(x, pd.Timestamp))
+
 
     def split_and_normalize_datetime_list(self, df: pd.DataFrame, column: str) -> pd.DataFrame:
         try:
@@ -115,4 +131,9 @@ class ValidationHelper:
                     else:
                         logger.warning(f"Validation function '{v}' not implemented")
 
-        return df_validated, df_invalid.drop_duplicates(ignore_index=True).reset_index(drop=True)
+        hashable_invalid = df_invalid.copy()
+        for col in hashable_invalid.columns:
+            if hashable_invalid[col].apply(lambda x: isinstance(x, (dict, list))).astype(bool).any():
+                hashable_invalid.drop(columns=[col], inplace=True)
+
+        return df_validated, hashable_invalid.drop_duplicates(ignore_index=True).reset_index(drop=True)

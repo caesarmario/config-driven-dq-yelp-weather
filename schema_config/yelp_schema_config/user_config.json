@@ -1,0 +1,134 @@
+{
+    "user_id": {
+        "col_csv": "user_id",
+        "dtype": "STRING",
+        "transformation": null,
+        "validation": "not_null"
+    },
+    "name": {
+        "col_csv": "name",
+        "dtype": "STRING",
+        "transformation": null,
+        "validation": null
+    },
+    "review_count": {
+        "col_csv": "review_count",
+        "dtype": "INTEGER",
+        "transformation": "to_numeric",
+        "validation": ["not_null", "non_negative"]
+    },
+    "yelping_since": {
+        "col_csv": "yelping_since",
+        "dtype": "DATETIME",
+        "transformation": "transform_to_datetime",
+        "validation": "checking_date_format"
+    },
+    "useful": {
+        "col_csv": "useful",
+        "dtype": "INTEGER",
+        "transformation": "to_numeric",
+        "validation": ["not_null", "non_negative"]
+    },
+    "funny": {
+        "col_csv": "funny",
+        "dtype": "INTEGER",
+        "transformation": "to_numeric",
+        "validation": ["not_null", "non_negative"]
+    },
+    "cool": {
+        "col_csv": "cool",
+        "dtype": "INTEGER",
+        "transformation": "to_numeric",
+        "validation": ["not_null", "non_negative"]
+    },
+    "elite": {
+        "col_csv": "elite",
+        "dtype": "STRING",
+        "transformation": null,
+        "validation": null
+    },
+    "friends": {
+        "col_csv": "friends",
+        "dtype": "TEXT",
+        "transformation": null,
+        "validation": null
+    },
+    "fans": {
+        "col_csv": "fans",
+        "dtype": "INTEGER",
+        "transformation": "to_numeric",
+        "validation": ["not_null", "non_negative"]
+    },
+    "average_stars": {
+        "col_csv": "average_stars",
+        "dtype": "FLOAT",
+        "transformation": "to_numeric",
+        "validation": ["not_null", "stars_range_check"]
+    },
+    "compliment_hot": {
+        "col_csv": "compliment_hot",
+        "dtype": "INTEGER",
+        "transformation": "to_numeric",
+        "validation": "non_negative"
+    },
+    "compliment_more": {
+        "col_csv": "compliment_more",
+        "dtype": "INTEGER",
+        "transformation": "to_numeric",
+        "validation": "non_negative"
+    },
+    "compliment_profile": {
+        "col_csv": "compliment_profile",
+        "dtype": "INTEGER",
+        "transformation": "to_numeric",
+        "validation": "non_negative"
+    },
+    "compliment_cute": {
+        "col_csv": "compliment_cute",
+        "dtype": "INTEGER",
+        "transformation": "to_numeric",
+        "validation": "non_negative"
+    },
+    "compliment_list": {
+        "col_csv": "compliment_list",
+        "dtype": "INTEGER",
+        "transformation": "to_numeric",
+        "validation": "non_negative"
+    },
+    "compliment_note": {
+        "col_csv": "compliment_note",
+        "dtype": "INTEGER",
+        "transformation": "to_numeric",
+        "validation": "non_negative"
+    },
+    "compliment_plain": {
+        "col_csv": "compliment_plain",
+        "dtype": "INTEGER",
+        "transformation": "to_numeric",
+        "validation": "non_negative"
+    },
+    "compliment_cool": {
+        "col_csv": "compliment_cool",
+        "dtype": "INTEGER",
+        "transformation": "to_numeric",
+        "validation": "non_negative"
+    },
+    "compliment_funny": {
+        "col_csv": "compliment_funny",
+        "dtype": "INTEGER",
+        "transformation": "to_numeric",
+        "validation": "non_negative"
+    },
+    "compliment_writer": {
+        "col_csv": "compliment_writer",
+        "dtype": "INTEGER",
+        "transformation": "to_numeric",
+        "validation": "non_negative"
+    },
+    "compliment_photos": {
+        "col_csv": "compliment_photos",
+        "dtype": "INTEGER",
+        "transformation": "to_numeric",
+        "validation": "non_negative"
+    }
+}

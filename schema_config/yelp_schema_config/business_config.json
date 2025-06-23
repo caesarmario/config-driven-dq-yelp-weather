@@ -33,7 +33,7 @@
         "col_csv": "postal_code",
         "dtype": "STRING",
         "transformation": null,
-        "validation": "check_postal_code_format"
+        "validation": null
     },
     "latitude": {
         "col_csv": "latitude",

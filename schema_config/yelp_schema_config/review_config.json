@@ -1,0 +1,56 @@
+{
+    "review_id": {
+        "col_csv": "review_id",
+        "dtype": "STRING",
+        "transformation": null,
+        "validation": "not_null"
+    },
+    "user_id": {
+        "col_csv": "user_id",
+        "dtype": "STRING",
+        "transformation": null,
+        "validation": "not_null"
+    },
+    "business_id": {
+        "col_csv": "business_id",
+        "dtype": "STRING",
+        "transformation": null,
+        "validation": "not_null"
+    },
+    "stars": {
+        "col_csv": "stars",
+        "dtype": "FLOAT",
+        "transformation": "to_numeric",
+        "validation": ["not_null", "stars_range_check"]
+    },
+    "useful": {
+        "col_csv": "useful",
+        "dtype": "INTEGER",
+        "transformation": "to_numeric",
+        "validation": ["not_null", "non_negative_pd"]
+    },
+    "funny": {
+        "col_csv": "funny",
+        "dtype": "INTEGER",
+        "transformation": "to_numeric",
+        "validation": ["not_null", "non_negative_pd"]
+    },
+    "cool": {
+        "col_csv": "cool",
+        "dtype": "INTEGER",
+        "transformation": "to_numeric",
+        "validation": ["not_null", "non_negative_pd"]
+    },
+    "text": {
+        "col_csv": "text",
+        "dtype": "TEXT",
+        "transformation": null,
+        "validation": null
+    },
+    "date": {
+        "col_csv": "date",
+        "dtype": "DATETIME",
+        "transformation": "transform_to_datetime",
+        "validation": "checking_date_format_pd"
+    }
+}
