@@ -194,7 +194,9 @@ class ETLHelper:
                         result = validation_func(df[col])
                         failed = ~result
                         df.loc[failed, "is_valid"] = False
-                        df.loc[failed, "error_reason"] += f"{col}_{rule};"
+                        df.loc[failed, "error_reason"] = df.loc[failed, "error_reason"].apply(
+                            lambda x: ("" if pd.isnull(x) else str(x)) + f"{col}_{rule};"
+                        )
                     except Exception as e:
                         logger.error(f"!! Validation rule failed: {col}.{rule} - {e}")
                 else:
@@ -433,6 +435,10 @@ class ETLHelper:
 
             # Tambahkan kolom load_dt ke dataframe
             df["load_dt"] = load_dt
+
+            for col in df.columns:
+                if df[col].apply(lambda x: isinstance(x, (dict, list))).any():
+                    df[col] = df[col].apply(lambda x: json.dumps(x) if isinstance(x, (dict, list)) else x)
 
             with conn.cursor() as cursor:
                 config = self.load_config(schema, f"{table_name}_config")

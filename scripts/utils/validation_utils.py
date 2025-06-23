@@ -38,7 +38,11 @@ class ValidationHelper:
 
     def min_less_than_max(self, row):
         try:
-            return row["min"] <= row["max"]
+            min_val = pd.to_numeric(row["min"], errors="coerce")
+            max_val = pd.to_numeric(row["max"], errors="coerce")
+            if pd.isnull(min_val) or pd.isnull(max_val):
+                return False
+            return min_val <= max_val
         except Exception as e:
             logger.error(f"!! Failed min < max validation: {e}")
             return False
@@ -46,7 +50,11 @@ class ValidationHelper:
 
     def normal_min_less_than_max(self, row):
         try:
-            return row["normal_min"] <= row["normal_max"]
+            min_val = pd.to_numeric(row["normal_min"], errors="coerce")
+            max_val = pd.to_numeric(row["normal_max"], errors="coerce")
+            if pd.isnull(min_val) or pd.isnull(max_val):
+                return False
+            return min_val <= max_val
         except Exception as e:
             logger.error(f"!! Failed normal_min < normal_max validation: {e}")
             return False

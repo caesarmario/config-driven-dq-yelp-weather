@@ -47,7 +47,7 @@ class ProcessFlatFile:
                     result = df.apply(self.validation_helper.min_less_than_max, axis=1)
                     failed = ~result
                     df.loc[failed, "is_valid"] = False
-                    df.loc[failed, "error_reason"] += "min_less_than_max;"
+                    df.loc[failed, "error_reason"] = df.loc[failed, "error_reason"].astype(str) + "min_less_than_max;"
                 except Exception as e:
                     logger.error(f"!! Cross-column validation min < max failed: {e}")
 
@@ -56,9 +56,9 @@ class ProcessFlatFile:
                     result = df.apply(self.validation_helper.normal_min_less_than_max, axis=1)
                     failed = ~result
                     df.loc[failed, "is_valid"] = False
-                    df.loc[failed, "error_reason"] += "normal_min_less_than_max;"
+                    df.loc[failed, "error_reason"] = df.loc[failed, "error_reason"].astype(str) + "normal_min_less_than_max;"
                 except Exception as e:
-                    logger.error(f"!! Cross-column validation normal_min < normal_max failed: {e}")
+                    logger.error(f"!! Cross-column validation normal_min < max failed: {e}")
 
             # Split valid and rejected
             df_valid = df[df["is_valid"] == True].drop(columns=["is_valid", "error_reason"])

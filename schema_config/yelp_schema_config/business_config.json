@@ -61,9 +61,9 @@
     },
     "is_open": {
         "col_csv": "is_open",
-        "dtype": "BOOLEAN",
+        "dtype": "INTEGER",
         "transformation": "to_numeric",
-        "validation": ["not_null", "boolean_check"]
+        "validation": ["not_null", "non_negative"]
     },
     "attributes": {
         "col_csv": "attributes",

@@ -6,7 +6,7 @@
 import pandas as pd
 import argparse
 import json
-
+import gc
 
 from utils.etl_utils import ETLHelper
 from utils.logging_utils import logger
@@ -39,6 +39,10 @@ class ParquetLoader:
             with conn.cursor() as cursor:
                 self.helper.check_and_create_table(conn, self.file_name, self.folder_name, df)
                 self.helper.upsert_data_into_table(conn, self.file_name, self.folder_name, df)
+            
+            del df
+            gc.collect()
+
         except Exception as e:
             logger.error(f"!! Error when merging data to {self.file_name} table - {e}")
 

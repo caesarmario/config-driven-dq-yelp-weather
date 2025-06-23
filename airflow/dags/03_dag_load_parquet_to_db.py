@@ -139,6 +139,8 @@ with TaskGroup("loader_group", dag=dag) as loader_group:
             },
             dag=dag,
         )
+
+        load_tip >> load_checkin >> load_business >> load_review >> load_user
     
     weather_group >> yelp_group
 
