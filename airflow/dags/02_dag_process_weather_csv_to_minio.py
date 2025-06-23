@@ -1,5 +1,5 @@
 ####
-## Airflow DAG: Extract yelp data to MinIO
+## Airflow DAG: To upload csv data to MinIO
 ## Tech Implementation Answer by Mario Caesar // caesarmario87@gmail.com
 ####
 
@@ -17,7 +17,7 @@ from datetime import datetime, timedelta
 from utils.email_utils import send_email_alert
 
 # -- DAG-level settings
-job_name        = "extract_yelp_to_minio"
+job_name        = "process_weather_csv_to_minio"
 
 default_args = {
     "owner"             : "caesarmario87@gmail.com",
@@ -29,24 +29,24 @@ default_args = {
 }
 
 dag = DAG(
-    dag_id            = f"01_dag_{job_name}",
+    dag_id            = f"02_dag_{job_name}",
     default_args      = default_args,
     catchup           = False,
     max_active_runs   = 1,
     tags              = ["test_case", "tech_implementation"]
 )
 
-# -- Function: run data extractor script
-def run_extractor(file_name: str, **kwargs):
+# -- Function: run data processor script
+def run_processor(file_name: str, **kwargs):
     """
-    Execute extract yelp script by pass file name and MinIO creds.
+    Execute processing weather script data to MinIO.
     """
     # MinIO Credentials
     minio_creds     = Variable.get("minio_creds")
 
     # Build command
     cmd = [
-        "python", "scripts/extract_yelp_to_minio.py",
+        "python", "scripts/process_weather_csv_to_minio.py",
         "--file_name", file_name,
         "--creds", minio_creds
     ]
@@ -63,24 +63,24 @@ task_start = EmptyOperator(
 )
 
 # Extract & transform JSON to Parquet files
-with TaskGroup("extract_yelp", dag=dag) as extract_group:
-    extract_yelp_dataset = PythonOperator(
-        task_id="yelp_dataset",
-        python_callable=run_extractor,
+with TaskGroup("process_weather", dag=dag) as process_group:
+    process_precipitation = PythonOperator(
+        task_id="process_precipitation",
+        python_callable=run_processor,
         op_kwargs={
-            "file_name": "yelp_dataset",
+            "file_name": "precipitation",
         },
         dag=dag,
     )
     
-    # extract_yelp_photos = PythonOperator(
-    #     task_id="yelp_photos",
-    #     python_callable=run_extractor,
-    #     op_kwargs={
-    #         "file_name": "yelp_photos",
-    #     },
-    #     dag=dag,
-    # )
+    process_temperature = PythonOperator(
+        task_id="process_temperature",
+        python_callable=run_processor,
+        op_kwargs={
+            "file_name": "temperature",
+        },
+        dag=dag,
+    )
     
 
 # Dummy End
@@ -90,4 +90,4 @@ task_end = EmptyOperator(
 )
 
 # -- Define execution order
-task_start >> extract_group >> task_end
+task_start >> process_group >> task_end

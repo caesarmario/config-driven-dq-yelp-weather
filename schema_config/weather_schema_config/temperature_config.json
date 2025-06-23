@@ -1,0 +1,32 @@
+{
+    "date": {
+        "col_csv": "date",
+        "dtype": "DATE",
+        "transformation": "transform_to_date",
+        "validation": "checking_date_format"
+    },
+    "min": {
+        "col_csv": "min",
+        "dtype": "FLOAT",
+        "transformation": "to_numeric",
+        "validation": ["not_null", "fahrenheit_range", "min_less_than_max"]
+    },
+    "max": {
+        "col_csv": "max",
+        "dtype": "FLOAT",
+        "transformation": "to_numeric",
+        "validation": ["not_null", "fahrenheit_range"]
+    },
+    "normal_min": {
+        "col_csv": "normal_min",
+        "dtype": "FLOAT",
+        "transformation": "to_numeric",
+        "validation": ["not_null", "fahrenheit_range", "normal_min_less_than_max"]
+    },
+    "normal_max": {
+        "col_csv": "normal_max",
+        "dtype": "FLOAT",
+        "transformation": "to_numeric",
+        "validation": ["not_null", "fahrenheit_range"]
+    }
+}

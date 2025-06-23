@@ -1,4 +1,4 @@
 ####
-## Airflow DAG: To upload csv data to Postgre
+## Airflow DAG: To upload extracted yelp data to Postgre
 ## Tech Implementation Answer by Mario Caesar // caesarmario87@gmail.com
 ####

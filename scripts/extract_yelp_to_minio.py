@@ -19,46 +19,63 @@ from utils.etl_utils import ETLHelper
 class ExtractData:
 
     def __init__(self, file_name:str, credentials: dict):
-        self.helper            = ETLHelper()
-        self.credentials       = credentials
-        self.raw_tar_path    = f"./data/yelp_raw/{file_name}.tar"
-        self.bucket_name       = credentials.get("MINIO_BUCKET_STAGING")
-        self.minio_folder_path = f"{file_name}"
+        try:
+            self.helper            = ETLHelper()
+            self.credentials       = credentials
+            self.raw_tar_path      = f"./data/yelp_raw/{file_name}.tar"
+            self.bucket_name       = credentials.get("MINIO_BUCKET_STAGING")
+            self.minio_folder_path = f"{file_name}"
+            self.minio_client      = self.helper.create_minio_conn(credentials)
+            logger.info(">> Configuration for loaded successfully! ")
+        except Exception as e:
+            logger.error(f"!! Failed to load configuration: {e}")
+            raise
 
+
+    def _upload_member(self, member_bytes: bytes, target_path: str):
+        try:
+            file_data = BytesIO(member_bytes)
+            self.minio_client.put_object(
+                bucket_name=self.bucket_name,
+                object_name=target_path,
+                data=file_data,
+                length=file_data.getbuffer().nbytes,
+                content_type="application/octet-stream"
+            )
+            logger.debug(f">> Uploaded: {target_path}")
+        except Exception as e:
+            logger.error(f"!! Failed to upload {target_path}: {e}")
 
     def extract(self):
         logger.info(f">> Extracting Yelp Dataset - {self.raw_tar_path}...")
-        
+
         try:
             with tarfile.open(self.raw_tar_path, 'r') as tar:
-
-                # Getting Info
-                members = tar.getmembers()
-                total_size = sum([m.size for m in members if m.isfile()])
+                members = [m for m in tar.getmembers() if m.isfile()]
+                total_size = sum(m.size for m in members)
                 logger.info(f">> Total files: {len(members)} | Total size: {total_size / (1024 ** 2):.2f} MB")
 
-                for member in tqdm(members, desc=">> Uploading to MinIO..."):
-                    if member.isdir():
-                        continue
-                    
-                    fileobj = tar.extractfile(member)
-                    if fileobj is None:
-                        logger.warning(f">> Skip file: {member.name} - empty or corrupt")
-                        continue
+                tasks = []
+                with ThreadPoolExecutor(max_workers=8) as executor:
+                    for member in tqdm(members, desc=">> Scheduling uploads"):
+                        try:
+                            fileobj = tar.extractfile(member)
+                            if fileobj is None:
+                                logger.warning(f">> Skip file: {member.name} - empty or corrupt")
+                                continue
 
-                    file_data = BytesIO(fileobj.read())
-                    target_path = f"{self.minio_folder_path}/{Path(member.name).name}"
+                            member_bytes = fileobj.read()
+                            target_path = f"{self.minio_folder_path}/{Path(member.name).name}"
 
-                    minio_client = self.helper.create_minio_conn(self.credentials)
+                            tasks.append(executor.submit(self._upload_member, member_bytes, target_path))
+                        except Exception as e:
+                            logger.warning(f">> Failed to extract {member.name}: {e}")
+                            continue
 
-                    minio_client.put_object(
-                        bucket_name=self.bucket_name,
-                        object_name=target_path,
-                        data=file_data,
-                        length=file_data.getbuffer().nbytes,
-                        content_type="application/octet-stream"
-                    )
-                    logger.debug(f">> Uploaded: {target_path}")
+                    for future in tqdm(as_completed(tasks), total=len(tasks), desc=">> Uploading to MinIO..."):
+                        _ = future.result()
+
+                logger.info(">> Extraction and upload completed successfully.")
 
         except Exception as e:
             logger.error(f"!! Failed extracting/uploading Yelp dataset: {e}")
@@ -66,7 +83,6 @@ class ExtractData:
 
 
 def main():
-    # Retrieving arguments
     try:
         parser = argparse.ArgumentParser(description="Extracting tar files")
         parser.add_argument("--file_name", type=str, required=True, help="tar file name")
@@ -75,14 +91,12 @@ def main():
     except Exception as e:
         logger.error(f"!! One of the arguments is empty! - {e}")
 
-    # Preparing variables & creds
     try:
         creds         = json.loads(args.creds)
     except Exception as e:
         logger.error(f"!! Failed to parse JSON credentials: {e}")
         raise ValueError("!! Invalid credentials JSON format")
 
-    # Running extractor
     try:
         extractor = ExtractData(args.file_name, creds)
         extractor.extract()

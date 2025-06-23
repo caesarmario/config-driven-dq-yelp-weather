@@ -1,0 +1,20 @@
+{
+    "date": {
+        "col_csv": "date",
+        "dtype": "DATE",
+        "transformation": "transform_to_date",
+        "validation": "checking_date_format"
+    },
+    "precipitation": {
+        "col_csv": "precipitation",
+        "dtype": "FLOAT",
+        "transformation": "to_numeric",
+        "validation": ["not_null", "precipitation_range", "negative_precipitation"]
+    },
+    "precipitation_normal": {
+        "col_csv": "precipitation_normal",
+        "dtype": "FLOAT",
+        "transformation": "to_numeric",
+        "validation": ["not_null", "precipitation_range", "negative_precipitation"]
+    }
+}
