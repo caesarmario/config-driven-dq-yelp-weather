@@ -83,6 +83,19 @@ with TaskGroup("extract_yelp", dag=dag) as extract_group:
     # )
     
 
+# Trigger downstream DAGs
+trigger_weather_csv = TriggerDagRunOperator(
+    task_id="trigger_weather_csv_dag",
+    trigger_dag_id="02_dag_process_weather_csv_to_minio",
+    dag=dag,
+)
+
+# trigger_yelp_json = TriggerDagRunOperator(
+#     task_id="trigger_yelp_json_dag",
+#     trigger_dag_id="02_dag_process_yelp_json_to_minio",
+#     dag=dag,
+# )
+
 # Dummy End
 task_end = EmptyOperator(
     task_id="task_end",
@@ -90,4 +103,5 @@ task_end = EmptyOperator(
 )
 
 # -- Define execution order
-task_start >> extract_group >> task_end
+task_start >> extract_group
+extract_group >> [trigger_weather_csv] >> task_end

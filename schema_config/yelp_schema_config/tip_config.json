@@ -1,62 +1,32 @@
 {
-    "location_id": {
-        "mapping": "city_key",
-        "data_type": "STRING",
+    "user_id": {
+        "col_csv": "user_id",
+        "dtype": "STRING",
+        "transformation": null,
+        "validation": "not_null"
+    },
+    "business_id": {
+        "col_csv": "business_id",
+        "dtype": "STRING",
+        "transformation": null,
+        "validation": "not_null"
+    },
+    "text": {
+        "col_csv": "text",
+        "dtype": "TEXT",
         "transformation": null,
         "validation": null
     },
     "date": {
-        "mapping": "current.last_updated",
-        "data_type": "DATE",
-        "transformation": "extract_date",
-        "validation": "validate_date"
+        "col_csv": "date",
+        "dtype": "DATETIME",
+        "transformation": "transform_to_datetime",
+        "validation": "checking_date_format"
     },
-    "last_updated": {
-        "mapping": "current.last_updated",
-        "data_type": "DATETIME",
-        "transformation": null,
-        "validation": "validate_timestamp"
-    },
-    "temp_c": {
-        "mapping": "current.temp_c",
-        "data_type": "FLOAT",
-        "transformation": null,
-        "validation": "validate_temperature_celsius"
-    },
-    "temp_f": {
-        "mapping": "current.temp_f",
-        "data_type": "FLOAT",
-        "transformation": null,
-        "validation": "validate_temperature_fahrenheit"
-    },
-    "is_day": {
-        "mapping": "current.is_day",
-        "data_type": "BOOLEAN",
-        "transformation": null,
-        "validation": "validate_boolean"
-    },
-    "condition_text": {
-        "mapping": "current.condition.text",
-        "data_type": "STRING",
-        "transformation": null,
-        "validation": null
-    },
-    "condition_code": {
-        "mapping": "current.condition.code",
-        "data_type": "INTEGER",
-        "transformation": null,
-        "validation": null
-    },
-    "batch_id": {
-        "mapping": "batch_id",
-        "data_type": "STRING",
-        "transformation": null,
-        "validation": null
-    },
-    "load_dt": {
-        "mapping": "load_dt",
-        "data_type": "TIMESTAMP",
-        "transformation": null,
-        "validation": null
+    "compliment_count": {
+        "col_csv": "compliment_count",
+        "dtype": "INTEGER",
+        "transformation": "to_numeric",
+        "validation": ["not_null", "non_negative"]
     }
 }

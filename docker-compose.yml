@@ -56,6 +56,7 @@ services:
       - ./airflow/logs:/opt/airflow/logs
       - ./airflow/plugins:/opt/airflow/plugins
       - ./:/opt/project:delegated
+      - /var/run/docker.sock:/var/run/docker.sock
     working_dir: /opt/project
     ports:
       - "8083:8080"
@@ -64,19 +65,13 @@ services:
       - minio_tc
     command: ["bash","-c","exec airflow standalone"]
 
-  jupyter:
-    image: jupyter/base-notebook
-    container_name: jupyter
-    ports:
-      - "8888:8888"
-    volumes:
-      - ./notebooks:/home/jovyan/work
-
   spark-master:
     image: bitnami/spark:latest
     container_name: spark-master
     environment:
       - SPARK_MODE=master
+      - HOME=/tmp
+      - SPARK_LOCAL_DIRS=/tmp
     ports:
       - "7077:7077"
       - "8081:8080"
@@ -89,6 +84,8 @@ services:
     environment:
       - SPARK_MODE=worker
       - SPARK_MASTER_URL=spark://spark-master:7077
+      - HOME=/tmp
+      - SPARK_LOCAL_DIRS=/tmp
     depends_on:
       - spark-master
     ports:

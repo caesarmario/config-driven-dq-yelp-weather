@@ -24,7 +24,7 @@ class ExtractData:
             self.credentials       = credentials
             self.raw_tar_path      = f"./data/yelp_raw/{file_name}.tar"
             self.bucket_name       = credentials.get("MINIO_BUCKET_STAGING")
-            self.minio_folder_path = f"{file_name}"
+            self.minio_folder_path = f"{file_name}_raw"
             self.minio_client      = self.helper.create_minio_conn(credentials)
             logger.info(">> Configuration for loaded successfully! ")
         except Exception as e:

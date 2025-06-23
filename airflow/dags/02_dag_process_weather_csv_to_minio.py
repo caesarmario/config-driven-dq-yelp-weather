@@ -62,7 +62,7 @@ task_start = EmptyOperator(
     dag=dag
 )
 
-# Extract & transform JSON to Parquet files
+# Extract & transform csv to Parquet files
 with TaskGroup("process_weather", dag=dag) as process_group:
     process_precipitation = PythonOperator(
         task_id="process_precipitation",

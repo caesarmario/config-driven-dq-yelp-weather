@@ -13,5 +13,5 @@ airflow/logs/
 # Sensitive files
 dev_notes.txt
 
-# Too Big for GitHub
+# Too Big for GitHub :(
 data
