@@ -61,14 +61,26 @@
     },
     "is_open": {
         "col_csv": "is_open",
-        "dtype": "INTEGER",
+        "dtype": "BOOLEAN",
         "transformation": "to_numeric",
         "validation": ["not_null", "boolean_check"]
+    },
+    "attributes": {
+        "col_csv": "attributes",
+        "dtype": "TEXT",
+        "transformation": "json_dumps_if_dict",
+        "validation": null
     },
     "categories": {
         "col_csv": "categories",
         "dtype": "TEXT",
         "transformation": null,
+        "validation": null
+    },
+    "hours": {
+        "col_csv": "hours",
+        "dtype": "TEXT",
+        "transformation": "json_dumps_if_dict",
         "validation": null
     }
 }

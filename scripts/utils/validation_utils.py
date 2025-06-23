@@ -6,6 +6,7 @@
 # Importing Libraries
 import pandas as pd
 import numpy as np
+import json
 
 from datetime import datetime, timedelta
 from utils.logging_utils import logger
@@ -80,6 +81,10 @@ class ValidationHelper:
 
     def checking_date_format_pd(self, series: pd.Series) -> pd.Series:
         return series.apply(lambda x: isinstance(x, pd.Timestamp))
+    
+
+    def json_dumps_if_dict(self, series: pd.Series) -> pd.Series:
+        return series.apply(lambda x: json.dumps(x) if isinstance(x, (dict, list)) else x)
 
 
     def split_and_normalize_datetime_list(self, df: pd.DataFrame, column: str) -> pd.DataFrame:

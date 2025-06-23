@@ -10,6 +10,7 @@ from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
 from airflow.utils.task_group import TaskGroup
 from airflow.operators.trigger_dagrun import TriggerDagRunOperator
+from airflow.sensors.external_task import ExternalTaskSensor
 
 import subprocess
 from datetime import datetime, timedelta
@@ -82,6 +83,23 @@ with TaskGroup("process_weather", dag=dag) as process_group:
         dag=dag,
     )
     
+# Sensor Task
+wait_for_yelp_dag = ExternalTaskSensor(
+    task_id="wait_for_yelp_process",
+    external_dag_id="02_dag_process_yelp_json_to_minio",
+    external_task_id="task_end",
+    mode="poke",
+    timeout=60 * 60 * 1,
+    poke_interval=60,
+    dag=dag,
+)
+
+# Trigger DAG
+trigger_loader = TriggerDagRunOperator(
+    task_id="trigger_load_parquet",
+    trigger_dag_id="03_dag_load_parquet_to_db",
+    dag=dag
+)
 
 # Dummy End
 task_end = EmptyOperator(
@@ -90,4 +108,4 @@ task_end = EmptyOperator(
 )
 
 # -- Define execution order
-task_start >> process_group >> task_end
+task_start >> process_group >> wait_for_yelp_dag >> trigger_loader >> task_end

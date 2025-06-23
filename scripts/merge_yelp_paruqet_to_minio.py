@@ -60,7 +60,7 @@ class MergeParquet:
             temp_output_path = f"/tmp/{self.file_name}.parquet"
             merged_df.to_parquet(temp_output_path, index=False)
 
-            object_path = f"{self.minio_path}/yelp_academic_dataset_{self.file_name}.parquet"
+            object_path = f"{self.minio_path}/yelp_academic_dataset_{self.file_name}_valid.parquet"
             self.helper.upload_file_to_minio(
                 client=self.minio_client,
                 bucket_name=self.bucket_staging,

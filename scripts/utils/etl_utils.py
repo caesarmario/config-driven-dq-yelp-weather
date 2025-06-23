@@ -3,16 +3,20 @@
 ## Tech Implementation Answer by Mario Caesar // caesarmario87@gmail.com
 ####
 
-import pandas as pd
-import numpy as np
+import os
 import json
 import traceback
-import os
+import pandas as pd
+import numpy as np
+import psycopg2
 
-from minio import Minio
 from pathlib import Path
 from io import BytesIO
+from datetime import datetime
+from minio import Minio
 from minio.error import S3Error
+from psycopg2 import OperationalError, sql
+from psycopg2.extras import execute_values
 
 from utils.logging_utils import logger
 from utils.validation_utils import ValidationHelper
@@ -198,3 +202,290 @@ class ETLHelper:
 
         return df
     
+    def read_parquet(self, bucket_name, credentials, folder_name, file_name):
+        try:
+            # Construct the path to the Parquet file
+            path = (
+                f"{folder_name}_dataset/{file_name}/yelp_academic_dataset_{file_name}_valid.parquet"
+                if folder_name == "yelp"
+                else f"{folder_name}/{file_name}/{file_name}_valid.parquet"
+            )
+
+            minio_client = self.create_minio_conn(credentials)
+            resp         = minio_client.get_object(bucket_name, path) # Fetch the Parquet file from the MinIO bucket
+
+            byte_data    = BytesIO(resp.read()) # Read the Parquet data into memory
+            df           = pd.read_parquet(byte_data)
+
+            return df
+
+        except Exception as e:
+            logger.error(f"!! Failed to read Parquet from MinIO bucket '{bucket_name}', path '{path}': {e}")
+            raise
+            
+        finally:
+            if 'resp' in locals() and resp is not None:
+                try:
+                    resp.close()
+                    resp.release_conn()
+                except Exception:
+                    pass
+
+    
+    def create_postgre_conn(self, db_creds):
+        try:
+            user           = db_creds["POSTGRES_USER"]
+            password       = db_creds["POSTGRES_PASSWORD"]
+            host           = db_creds["POSTGRES_HOST"]
+            port           = db_creds["POSTGRES_PORT"]
+            dbname         = db_creds["POSTGRES_DB"]
+
+            conn = psycopg2.connect(
+                database=dbname,
+                user=user,
+                password=password,
+                host=host,
+                port=port
+            )
+
+            with conn.cursor() as cursor:
+                cursor.execute("SELECT 1")
+                logger.info(">> Successfully connected to PostgreSQL database.")
+            return conn
+
+        except Exception as e:
+            logger.error(f"!! Creating postgres connection failed: {e}")
+            raise
+
+
+    def load_config(self, subfolder, config_name):
+        with open(f'schema_config/{subfolder}_schema_config/{config_name}.json', 'r') as file:
+            return json.load(file)
+
+
+    def load_reserved_keywords(self):
+        try:
+            # Load reserve keywords
+            with open(f'scripts/utils/reserved_keywords.json', 'r') as file:
+                return json.load(file)["postgres_reserved_keywords"]
+        except Exception as e:
+            logger.error(f"!! Failed to load reserve keywords: {e}")
+            raise
+
+    
+    def _map_dtype_to_postgres(self, dtype):
+        dtype_mapping = {
+            'string': 'TEXT',
+            'datetime64[ns]': 'TIMESTAMP',
+            'float64': 'DOUBLE PRECISION',
+            'bool': 'BOOLEAN',
+            'int64': 'INTEGER',
+            'object': 'TEXT',
+            'datetime': 'TIMESTAMP',
+        }
+        
+        return dtype_mapping.get(str(dtype), 'TEXT')
+    
+
+    def _map_dtype_to_postgres_from_config(self, column_data_type):
+        dtype_mapping = {
+            'STRING': 'TEXT',
+            'DATE': 'DATE',
+            'DATETIME': 'TIMESTAMP',
+            'FLOAT': 'DOUBLE PRECISION',
+            'BOOLEAN': 'BOOLEAN',
+            'INTEGER': 'INTEGER',
+        }
+        
+        return dtype_mapping.get(column_data_type, 'TEXT')
+    
+
+    def alter_table_schema(self, conn, table_name: str, schema: str, df: pd.DataFrame):
+        try:
+            with conn.cursor() as cursor:
+                # Get existing columns and data types from the database
+                cursor.execute(
+                    sql.SQL("SELECT column_name, data_type FROM information_schema.columns WHERE table_name = %s AND table_schema = %s"),
+                    [table_name, schema]
+                )
+                existing_columns = {row[0]: row[1] for row in cursor.fetchall()}
+
+                # Get new columns from DataFrame
+                new_columns = df.columns.tolist()
+
+                # Add new columns or alter existing columns
+                for column in new_columns:
+                    pg_data_type = self._map_dtype_to_postgres(df[column].dtype)
+
+                    if column not in existing_columns:
+                        logger.info(f"Adding new column {column} with type {pg_data_type} to {schema}.{table_name}.")
+                        cursor.execute(
+                            sql.SQL("ALTER TABLE {}.{} ADD COLUMN {} {};").format(
+                                sql.Identifier(schema),
+                                sql.Identifier(table_name),
+                                sql.Identifier(column),
+                                sql.SQL(pg_data_type)
+                            )
+                        )
+                        conn.commit()
+                        logger.info(f"Column {column} added to {schema}.{table_name}.")
+                    elif existing_columns[column].upper() != pg_data_type.upper():
+                        logger.info(f"Updating column {column} from {existing_columns[column]} to {pg_data_type}.")
+                        cursor.execute(
+                            sql.SQL("ALTER TABLE {}.{} ALTER COLUMN {} SET DATA TYPE {};").format(
+                                sql.Identifier(schema),
+                                sql.Identifier(table_name),
+                                sql.Identifier(column),
+                                sql.SQL(pg_data_type)
+                            )
+                        )
+                        conn.commit()
+                        logger.info(f"Column {column} updated to {pg_data_type} in {schema}.{table_name}.")
+
+        except Exception as e:
+            logger.error(f"Error in altering table schema for {schema}.{table_name}: {e}")
+            raise
+
+
+    def check_and_create_table(self, conn, table_name: str, schema: str, df: pd.DataFrame):
+        try:
+            # Create a cursor to execute SQL queries
+            with conn.cursor() as cursor:
+                
+                # Check if the schema exists in the database
+                cursor.execute(
+                    sql.SQL("SELECT EXISTS (SELECT 1 FROM information_schema.schemata WHERE schema_name = %s)"),
+                    [schema]
+                )
+                schema_exists = cursor.fetchone()[0]  # Fetch the result of the query, which is a boolean
+
+                if not schema_exists:
+                    logger.info(f"Schema {schema} does not exist. Creating schema...")
+                    try:
+                        cursor.execute(
+                            sql.SQL("CREATE SCHEMA {}").format(sql.Identifier(schema))
+                        )
+                        conn.commit()
+                        logger.info(f"Schema {schema} created successfully.")
+                    except Exception as e:
+                        logger.error(f"Error creating schema {schema}: {e}")
+                        if "duplicate key" in str(e):  # Ignore error if schema already exists
+                            logger.info(f"Schema {schema} already exists. Skipping creation.")
+
+                # Check if the table exists in the schema by querying the information_schema.tables
+                cursor.execute(
+                    sql.SQL("SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = %s AND table_schema = %s)"),
+                    [table_name, schema]
+                )
+                table_exists = cursor.fetchone()[0]  # Fetch the result of the query, which is a boolean
+                
+                if not table_exists:
+                    logger.info(f"Table {schema}.{table_name} does not exist. Creating table...")
+
+                    # Generate the SQL columns based on the config file and pandas DataFrame
+                    config = self.load_config(schema, f"{table_name}_config")
+
+                    # Load reserved keywords
+                    reserved_keywords = self.load_reserved_keywords()
+
+                    columns = []
+                    for column, column_config in config.items():
+                        # Get the column name and its data type from the config
+
+                        column_name = f'"{column}"' if column.lower() in reserved_keywords else column
+                        column_data_type = column_config['dtype']
+                        
+                        # Map the data type to a PostgreSQL type
+                        pg_data_type = self._map_dtype_to_postgres_from_config(column_data_type)
+                        
+                        # Add the column to the list of SQL columns
+                        columns.append(f"{column_name} {pg_data_type}")
+                        
+                    
+                    columns.append("load_dt TIMESTAMP")
+
+                    # Print the columns first (before joining)
+                    columns_sql = ", ".join(columns)
+
+                    # Create the SQL query to create the table
+                    create_table_query = f"CREATE TABLE {schema}.{table_name} ({columns_sql})"
+                    logger.info(f"Generated SQL Query: {create_table_query}")
+
+                    # Execute the create table query
+                    cursor.execute(create_table_query)
+                    conn.commit()
+                    logger.info(f"Table {schema}.{table_name} created successfully. Proceed to next step")
+                else:
+                    # Checking schema changes if exists
+                    logger.info(f"Table {schema}.{table_name} already exists. Checking for schema changes...")
+                    self.alter_table_schema(conn, table_name, schema, df)
+
+        except Exception as e:
+            logger.error(f"Error in checking or creating table {schema}.{table_name}: {e}")
+            raise
+
+    
+    def upsert_data_into_table(self, conn, table_name: str, schema: str, df: pd.DataFrame):
+        try:
+            exec_date = datetime.now().strftime("%Y%m%d")
+            temp_table_name = f"{table_name}_temp_{exec_date}"
+            load_dt = datetime.now()
+
+            # Tambahkan kolom load_dt ke dataframe
+            df["load_dt"] = load_dt
+
+            with conn.cursor() as cursor:
+                config = self.load_config(schema, f"{table_name}_config")
+                reserved_keywords = self.load_reserved_keywords()
+
+                # Create column definitions from config
+                columns = []
+                for column, column_config in config.items():
+                    column_name = f'"{column}"' if column.lower() in reserved_keywords else column
+                    column_data_type = column_config['dtype']
+                    pg_data_type = self._map_dtype_to_postgres_from_config(column_data_type)
+                    columns.append(f"{column_name} {pg_data_type}")
+                columns.append("load_dt TIMESTAMP")  # Add load_dt column
+
+                # Drop temp table if exists
+                cursor.execute(f"DROP TABLE IF EXISTS {schema}.{temp_table_name};")
+                conn.commit()
+
+                # Create temp table
+                create_temp_table_query = f"CREATE TABLE {schema}.{temp_table_name} ({', '.join(columns)});"
+                logger.info(f"> Create temp table query: {create_temp_table_query}")
+                cursor.execute(create_temp_table_query)
+                conn.commit()
+
+                # Insert into temp table
+                insert_query = f"INSERT INTO {schema}.{temp_table_name} ({', '.join(df.columns)}) VALUES %s"
+                insert_values = [tuple(row) for row in df.values]
+                execute_values(cursor, insert_query, insert_values)
+                conn.commit()
+                logger.info(f"> Inserted data into temporary table {schema}.{temp_table_name}.")
+
+                # Truncate old data from main table by load_dt
+                truncate_query = f"DELETE FROM {schema}.{table_name} WHERE load_dt < %s"
+                cursor.execute(truncate_query, [load_dt])
+                conn.commit()
+                logger.info(f"> Old data from {schema}.{table_name} with load_dt < {load_dt} deleted.")
+
+                # Insert into main table
+                column_list = ", ".join(df.columns)
+                insert_main_query = f"""
+                    INSERT INTO {schema}.{table_name} ({column_list})
+                    SELECT {column_list}
+                    FROM {schema}.{temp_table_name};
+                """
+                cursor.execute(insert_main_query)
+                conn.commit()
+                logger.info(f">> Data inserted into {schema}.{table_name} from temporary table.")
+
+                # Drop temp table
+                cursor.execute(f"DROP TABLE IF EXISTS {schema}.{temp_table_name};")
+                conn.commit()
+                logger.info(f"> Temporary table {schema}.{temp_table_name} dropped.")
+
+        except Exception as e:
+            logger.error(f"!! Error during table upsert process for {schema}.{table_name}: {e}")
+            raise

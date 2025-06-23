@@ -36,7 +36,7 @@ dag = DAG(
     tags              = ["test_case", "tech_implementation"]
 )
 
-# -- Function: run data processor script
+# -- Function: run data processor & merger script
 def run_processor(file_name: str, **kwargs):
     """
     Run script to process Yelp JSON into chunked Parquet via MinIO.

@@ -1,4 +1,0 @@
-####
-## Airflow DAG: To process cleaned yelp parquet data to postgre
-## Tech Implementation Answer by Mario Caesar // caesarmario87@gmail.com
-####
