@@ -1,61 +1,73 @@
 {
-    "location_id": {
-        "mapping": "city_key",
-        "data_type": "STRING",
+    "business_id": {
+        "col_csv": "business_id",
+        "dtype": "STRING",
+        "transformation": null,
+        "validation": "not_null"
+    },
+    "name": {
+        "col_csv": "name",
+        "dtype": "STRING",
+        "transformation": null,
+        "validation": "not_null"
+    },
+    "address": {
+        "col_csv": "address",
+        "dtype": "STRING",
         "transformation": null,
         "validation": null
     },
-    "date": {
-        "mapping": "current.last_updated",
-        "data_type": "DATE",
-        "transformation": "extract_date",
-        "validation": "validate_date"
-    },
-    "last_updated": {
-        "mapping": "current.last_updated",
-        "data_type": "DATETIME",
+    "city": {
+        "col_csv": "city",
+        "dtype": "STRING",
         "transformation": null,
-        "validation": "validate_timestamp"
+        "validation": "not_null"
     },
-    "temp_c": {
-        "mapping": "current.temp_c",
-        "data_type": "FLOAT",
-        "transformation": null,
-        "validation": "validate_temperature_celsius"
-    },
-    "temp_f": {
-        "mapping": "current.temp_f",
-        "data_type": "FLOAT",
-        "transformation": null,
-        "validation": "validate_temperature_fahrenheit"
-    },
-    "is_day": {
-        "mapping": "current.is_day",
-        "data_type": "BOOLEAN",
-        "transformation": null,
-        "validation": "validate_boolean"
-    },
-    "condition_text": {
-        "mapping": "current.condition.text",
-        "data_type": "STRING",
+    "state": {
+        "col_csv": "state",
+        "dtype": "STRING",
         "transformation": null,
         "validation": null
     },
-    "condition_code": {
-        "mapping": "current.condition.code",
-        "data_type": "INTEGER",
+    "postal_code": {
+        "col_csv": "postal_code",
+        "dtype": "STRING",
         "transformation": null,
-        "validation": null
+        "validation": "check_postal_code_format"
     },
-    "batch_id": {
-        "mapping": "batch_id",
-        "data_type": "STRING",
-        "transformation": null,
-        "validation": null
+    "latitude": {
+        "col_csv": "latitude",
+        "dtype": "FLOAT",
+        "transformation": "to_numeric",
+        "validation": ["not_null", "validate_latitude"]
     },
-    "load_dt": {
-        "mapping": "load_dt",
-        "data_type": "TIMESTAMP",
+    "longitude": {
+        "col_csv": "longitude",
+        "dtype": "FLOAT",
+        "transformation": "to_numeric",
+        "validation": ["not_null", "validate_longitude"]
+    },
+    "stars": {
+        "col_csv": "stars",
+        "dtype": "FLOAT",
+        "transformation": "to_numeric",
+        "validation": ["not_null", "non_negative", "stars_range_check"]
+    },
+    "review_count": {
+        "col_csv": "review_count",
+        "dtype": "INTEGER",
+        "transformation": "to_numeric",
+        "validation": ["not_null", "non_negative"]
+    },
+    "is_open": {
+        "col_csv": "is_open",
+        "dtype": "INTEGER",
+        "transformation": "to_numeric",
+        "validation": ["not_null", "boolean_check"]
+    },
+    "categories": {
+        "col_csv": "categories",
+        "dtype": "TEXT",
         "transformation": null,
         "validation": null
     }

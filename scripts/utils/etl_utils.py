@@ -6,10 +6,13 @@
 import pandas as pd
 import numpy as np
 import json
+import traceback
+import os
 
 from minio import Minio
 from pathlib import Path
 from io import BytesIO
+from minio.error import S3Error
 
 from utils.logging_utils import logger
 from utils.validation_utils import ValidationHelper
@@ -50,6 +53,79 @@ class ETLHelper:
             logger.info(f">> Uploaded to MinIO: {bucket}/{path}")
         except Exception as e:
             logger.error(f"!! Failed to upload parquet to MinIO: {e}")
+            raise
+
+
+    def download_file_from_minio(self, client, bucket_name, object_name):
+        try:
+            logger.info(f">> Downloading from MinIO: {bucket_name}/{object_name}")
+            response = client.get_object(bucket_name, object_name)
+
+            local_path = f"/tmp/{object_name.replace('/', '_')}"
+            os.makedirs(os.path.dirname(local_path), exist_ok=True)
+
+            with open(local_path, "wb") as file_data:
+                for chunk in response.stream(32 * 1024):
+                    file_data.write(chunk)
+
+            logger.info(f">> Successfully downloaded to {local_path}")
+            return local_path
+
+        except Exception as e:
+            logger.error(f"!! Failed to download file from MinIO: {e}")
+            raise
+
+    
+    def delete_parquet_chunks(self, client, bucket_name: str, prefix: str):
+        """
+        Deletes all .parquet files in a given prefix path in the specified MinIO bucket.
+        """
+        
+
+        try:
+            objects_to_delete = client.list_objects(bucket_name, prefix=prefix, recursive=True)
+            parquet_objects = [obj.object_name for obj in objects_to_delete if obj.object_name.endswith(".parquet")]
+
+            for obj_name in parquet_objects:
+                client.remove_object(bucket_name, obj_name)
+                print(f">> Deleted existing chunk: {obj_name}")
+
+            if not parquet_objects:
+                print(">> No existing parquet chunks found to delete.")
+
+        except S3Error as err:
+            print(f"!! MinIO S3Error while deleting parquet chunks: {err}")
+            traceback.print_exc()
+            raise
+
+        except Exception as e:
+            print(f"!! Unexpected error while deleting parquet chunks: {e}")
+            traceback.print_exc()
+            raise
+
+    
+    def upload_file_to_minio(self, client, bucket_name: str, object_name: str, local_file_path: str):
+        try:
+            if not os.path.exists(local_file_path):
+                raise FileNotFoundError(f"File not found: {local_file_path}")
+
+            logger.info(f">> Uploading to MinIO: {bucket_name}/{object_name}")
+            with open(local_file_path, "rb") as file_data:
+                file_stat = os.stat(local_file_path)
+                client.put_object(
+                    bucket_name=bucket_name,
+                    object_name=object_name,
+                    data=file_data,
+                    length=file_stat.st_size,
+                    content_type="application/octet-stream"
+                )
+            logger.info(f">> Successfully uploaded: {object_name}")
+
+        except S3Error as e:
+            logger.error(f"!! MinIO S3Error while uploading {local_file_path}: {e}")
+            raise
+        except Exception as e:
+            logger.error(f"!! Failed to upload file to MinIO: {e}")
             raise
 
 
@@ -121,3 +197,4 @@ class ETLHelper:
                     logger.warning(f">> Skipping unknown column validator: {rule}")
 
         return df
+    

@@ -50,3 +50,69 @@ class ValidationHelper:
         except Exception as e:
             logger.error(f"!! Failed non_negative validation: {e}")
             return pd.Series([False] * len(series))
+    
+    def check_postal_code_format(self, series):
+        return series.astype(str).str.match(r"^\d{5}$")
+
+    def validate_latitude(self, series):
+        return series.between(-90, 90)
+
+    def validate_longitude(self, series):
+        return series.between(-180, 180)
+
+    def stars_range_check(self, series):
+        return series.between(0, 5)
+
+    def boolean_check(self, series):
+        return series.isin([0, 1])
+
+    def split_and_normalize_datetime_list(self, df: pd.DataFrame, column: str) -> pd.DataFrame:
+        try:
+            # Split string by comma, strip whitespace, convert to datetime
+            df[column] = df[column].apply(lambda x: [d.strip() for d in str(x).split(',')] if pd.notnull(x) else [])
+            df = df.explode(column)
+            df[column] = pd.to_datetime(df[column], errors='coerce')
+            return df
+        except Exception as e:
+            logger.error(f"!! Failed to normalize datetime list in column '{column}': {e}")
+            raise
+        
+
+    def validate_chunk(self, df: pd.DataFrame, config: dict) -> tuple[pd.DataFrame, pd.DataFrame]:
+        df_validated = df.copy(deep=True)
+        df_invalid = pd.DataFrame()
+
+        for col, rules in config.items():
+            col_name = rules.get("col_csv")
+            validation = rules.get("validation")
+            transformation = rules.get("transformation")
+
+            if col_name not in df_validated.columns:
+                logger.warning(f"Column {col_name} not found in data")
+                continue
+
+            # Transformation
+            if transformation == "split_and_normalize_datetime_list":
+                df_validated = self.split_and_normalize_datetime_list(df_validated, col_name)
+            elif transformation == "transform_to_datetime":
+                df_validated[col_name] = pd.to_datetime(df_validated[col_name], errors='coerce')
+            elif transformation == "to_numeric":
+                df_validated[col_name] = pd.to_numeric(df_validated[col_name], errors='coerce')
+
+            # Validation
+            if validation:
+                if isinstance(validation, str):
+                    validation = [validation]
+                for v in validation:
+                    validation_func = getattr(self, v, None)
+                    if callable(validation_func):
+                        try:
+                            mask = validation_func(df_validated[col_name])
+                            df_invalid = pd.concat([df_invalid, df_validated[~mask]])
+                            df_validated = df_validated[mask]
+                        except Exception as e:
+                            logger.error(f"!! Failed to run validation '{v}' for column '{col_name}': {e}")
+                    else:
+                        logger.warning(f"Validation function '{v}' not implemented")
+
+        return df_validated, df_invalid.drop_duplicates(ignore_index=True).reset_index(drop=True)

@@ -65,34 +65,6 @@ services:
       - minio_tc
     command: ["bash","-c","exec airflow standalone"]
 
-  spark-master:
-    image: bitnami/spark:latest
-    container_name: spark-master
-    environment:
-      - SPARK_MODE=master
-      - HOME=/tmp
-      - SPARK_LOCAL_DIRS=/tmp
-    ports:
-      - "7077:7077"
-      - "8081:8080"
-    volumes:
-      - spark_master_data:/bitnami
-
-  spark-worker:
-    image: bitnami/spark:latest
-    container_name: spark-worker
-    environment:
-      - SPARK_MODE=worker
-      - SPARK_MASTER_URL=spark://spark-master:7077
-      - HOME=/tmp
-      - SPARK_LOCAL_DIRS=/tmp
-    depends_on:
-      - spark-master
-    ports:
-      - "8082:8080"
-    volumes:
-      - spark_worker_data:/bitnami
-
   metabase:
     image: metabase/metabase
     container_name: metabase
@@ -119,5 +91,3 @@ services:
 volumes:
   pg_data:
   minio_data:
-  spark_master_data:
-  spark_worker_data:
