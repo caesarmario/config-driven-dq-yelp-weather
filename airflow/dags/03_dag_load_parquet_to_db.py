@@ -144,6 +144,21 @@ with TaskGroup("loader_group", dag=dag) as loader_group:
     
     weather_group >> yelp_group
 
+
+# Trigger DAG
+trigger_generate = TriggerDagRunOperator(
+    task_id="trigger_generate_insight_dwh",
+    trigger_dag_id="04_dag_generate_insight_dwh",
+    dag=dag
+)
+
+# Trigger DAG
+trigger_monitoring = TriggerDagRunOperator(
+    task_id="trigger_l1_monitoring",
+    trigger_dag_id="99_dag_dm_checker_l1",
+    dag=dag
+)
+
 # Dummy End
 task_end = EmptyOperator(
     task_id="task_end",
@@ -151,4 +166,4 @@ task_end = EmptyOperator(
 )
 
 # -- Define execution order
-task_start >> loader_group >> task_end
+task_start >> loader_group >> trigger_generate >> trigger_monitoring >> task_end

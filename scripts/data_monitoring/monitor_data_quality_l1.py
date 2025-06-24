@@ -1,5 +1,5 @@
 ####
-## DWH data monitoring script
+## L1 data monitoring script
 ## Tech Implementation Answer by Mario Caesar // caesarmario87@gmail.com
 ####
 
@@ -9,15 +9,15 @@ import json
 from scripts.utils.logging_utils import logger
 from scripts.utils.monitor_utils import MonitorHelper
 
-class dwhMonitoring:
+class L1Monitoring:
 
-    def __init__(self, table_name: str, db_creds: dict):
+    def __init__(self, table_name: str, schema_name: str, db_creds: dict):
         try:
             self.helper         = MonitorHelper()
             self.db_creds       = db_creds
             self.table_name     = table_name
-            self.schema_name    = "dwh"
-            self.target_schema  = "data_monitoring_dwh"
+            self.schema_name    = schema_name
+            self.target_schema  = "data_monitoring"
         except Exception as e:
             logger.error(f"!! Failed to load configuration: {e}")
             raise
@@ -57,6 +57,7 @@ def main():
     try:
         parser = argparse.ArgumentParser(description="Monitoring results")
         parser.add_argument("--table_name", type=str, required=True, help="Table name")
+        parser.add_argument("--schema_name", type=str, required=True, help="Schema name")
         parser.add_argument("--db_creds", type=str, required=True, help="DB credentials")
         args = parser.parse_args()
     except Exception as e:
@@ -69,7 +70,7 @@ def main():
         raise ValueError("!! Invalid credentials JSON format")
 
     try:
-        monitor = dwhMonitoring(args.table_name, db_creds)
+        monitor = L1Monitoring(args.table_name, args.schema_name, db_creds)
         monitor.monitor()
     except Exception as e:
         logger.error(f"!! Error running file processor - {e}")

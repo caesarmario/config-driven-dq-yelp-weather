@@ -1,5 +1,5 @@
 ####
-## Airflow DAG: To generate insight (fact tables) in dwh schema
+## Airflow DAG: To perform data monitoring for dwh layer
 ## Tech Implementation Answer by Mario Caesar // caesarmario87@gmail.com
 ####
 
@@ -9,13 +9,12 @@ from airflow.sdk import Variable
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
 from airflow.utils.task_group import TaskGroup
-from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 
 import subprocess
 from datetime import datetime, timedelta
 
 # -- DAG-level settings
-job_name        = "generate_insight_dwh"
+job_name        = "dm_checker_dwh"
 
 default_args = {
     "owner"             : "caesarmario87@gmail.com",
@@ -27,7 +26,7 @@ default_args = {
 }
 
 dag = DAG(
-    dag_id            = f"04_dag_{job_name}",
+    dag_id            = f"99_dag_{job_name}",
     default_args      = default_args,
     catchup           = False,
     max_active_runs   = 1,
@@ -35,17 +34,14 @@ dag = DAG(
 )
 
 
-# -- Function: run data generator script
-def run_generator(sql_file_name: str, **kwargs):
-    """
-    Run script to load weather parquet into db.
-    """
+# -- Function: run data monitoring script
+def run_dm(table_name: str, **kwargs):
     db_creds    = Variable.get("db_creds")
 
     # Build command
     cmd = [
-        "python", "scripts/generate_dwh_insight.py",
-        "--sql_file_name", sql_file_name,
+        "python", "scripts/data_monitoring/monitor_data_quality_dwh.py",
+        "--table_name", table_name,
         "--db_creds", db_creds
     ]
 
@@ -60,32 +56,25 @@ task_start = EmptyOperator(
     dag=dag
 )
 
-with TaskGroup("insight_generator", dag=dag) as insight_group:
+# Monitoring
+with TaskGroup("monitoring_group", dag=dag) as monitor_group:
+    fact_checkin_weather = PythonOperator(
+        task_id="fact_checkin_weather",
+        python_callable=run_dm,
+        op_kwargs={
+            "table_name": "fact_checkin_weather",
+        },
+        dag=dag,
+    )
 
     fact_review_weather = PythonOperator(
-        task_id="gen_fact_review_weather",
-        python_callable=run_generator,
+        task_id="fact_review_weather",
+        python_callable=run_dm,
         op_kwargs={
-            "sql_file_name": "fact_review_weather"
+            "table_name": "fact_review_weather",
         },
-        dag=dag
+        dag=dag,
     )
-
-    fact_checkin_weather = PythonOperator(
-        task_id="gen_fact_checkin_weather",
-        python_callable=run_generator,
-        op_kwargs={
-            "sql_file_name": "fact_checkin_weather"
-        },
-        dag=dag
-    )
-
-# Trigger DAG
-trigger_monitoring = TriggerDagRunOperator(
-    task_id="trigger_dwh_monitoring",
-    trigger_dag_id="99_dag_dm_checker_dwh",
-    dag=dag
-)
 
 # Dummy End
 task_end = EmptyOperator(
@@ -94,4 +83,4 @@ task_end = EmptyOperator(
 )
 
 # -- Define execution order
-task_start >> insight_group >> trigger_monitoring >> task_end
+task_start >> monitor_group >> task_end

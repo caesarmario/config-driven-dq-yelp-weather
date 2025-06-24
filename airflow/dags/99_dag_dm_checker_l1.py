@@ -35,33 +35,14 @@ dag = DAG(
 
 
 # -- Function: run data monitoring script
-def run_dm_weather(table_name: str, **kwargs):
-    """
-    Run script to load weather parquet into db.
-    """
+def run_dm(table_name: str, schema_name: str, **kwargs):
     db_creds    = Variable.get("db_creds")
 
     # Build command
     cmd = [
-        "python", "scripts/data_monitoring/monitor_data_quality_weather.py",
+        "python", "scripts/data_monitoring/monitor_data_quality_l1.py",
         "--table_name", table_name,
-        "--db_creds", db_creds
-    ]
-
-    # Execute script
-    subprocess.run(cmd, check=True)
-
-
-def run_dm_yelp(table_name: str, **kwargs):
-    """
-    Run script to load weather parquet into db.
-    """
-    db_creds    = Variable.get("db_creds")
-
-    # Build command
-    cmd = [
-        "python", "scripts/monitor_data_quality_yelp.py",
-        "--table_name", table_name,
+        "--schema_name", schema_name,
         "--db_creds", db_creds
     ]
 
@@ -77,25 +58,83 @@ task_start = EmptyOperator(
 )
 
 # Monitoring
-with TaskGroup("monitor_weather", dag=dag) as weather_group:
+with TaskGroup("monitoring_group", dag=dag) as monitor_group:
+    with TaskGroup("monitor_weather", dag=dag) as weather_group:
 
-    weather_precipitation = PythonOperator(
-        task_id="weather_precipitation",
-        python_callable=run_dm_weather,
-        op_kwargs={
-            "table_name": "precipitation",
-        },
-        dag=dag,
-    )
+        weather_precipitation = PythonOperator(
+            task_id="weather_precipitation",
+            python_callable=run_dm,
+            op_kwargs={
+                "table_name": "precipitation",
+                "schema_name": "weather"
+            },
+            dag=dag,
+        )
 
-    weather_temperature = PythonOperator(
-        task_id="weather_temperature",
-        python_callable=run_dm_weather,
-        op_kwargs={
-            "table_name": "temperature",
-        },
-        dag=dag,
-    )
+        weather_temperature = PythonOperator(
+            task_id="weather_temperature",
+            python_callable=run_dm,
+            op_kwargs={
+                "table_name": "temperature",
+                "schema_name": "weather"
+            },
+            dag=dag,
+        )
+
+
+    with TaskGroup("monitor_yelp", dag=dag) as yelp_group:
+
+        yelp_business = PythonOperator(
+            task_id="yelp_business",
+            python_callable=run_dm,
+            op_kwargs={
+                "table_name": "business",
+                "schema_name": "yelp"
+            },
+            dag=dag,
+        )
+
+        yelp_tip = PythonOperator(
+            task_id="yelp_tip",
+            python_callable=run_dm,
+            op_kwargs={
+                "table_name": "tip",
+                "schema_name": "yelp"
+            },
+            dag=dag,
+        )
+
+        yelp_checkin = PythonOperator(
+            task_id="yelp_checkin",
+            python_callable=run_dm,
+            op_kwargs={
+                "table_name": "checkin",
+                "schema_name": "yelp"
+            },
+            dag=dag,
+        )
+
+        yelp_user = PythonOperator(
+            task_id="yelp_user",
+            python_callable=run_dm,
+            op_kwargs={
+                "table_name": "user",
+                "schema_name": "yelp"
+            },
+            dag=dag,
+        )
+
+        yelp_review = PythonOperator(
+            task_id="yelp_review",
+            python_callable=run_dm,
+            op_kwargs={
+                "table_name": "review",
+                "schema_name": "yelp"
+            },
+            dag=dag,
+        )
+
+    weather_group >> yelp_group
 
 # Dummy End
 task_end = EmptyOperator(
@@ -104,4 +143,4 @@ task_end = EmptyOperator(
 )
 
 # -- Define execution order
-task_start >> weather_group >> task_end
+task_start >> monitor_group >> task_end
