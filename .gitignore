@@ -14,4 +14,5 @@ airflow/logs/
 dev_notes.txt
 
 # Too Big for GitHub :(
-data
+data/weather_raw/**
+data/yelp_raw/**
