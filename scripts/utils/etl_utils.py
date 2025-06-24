@@ -107,6 +107,34 @@ class ETLHelper:
             traceback.print_exc()
             raise
 
+
+    def delete_csv_chunks(self, client, bucket_name: str, prefix: str):
+        """
+        Deletes all .csv files in a given prefix path in the specified MinIO bucket.
+        """
+        
+
+        try:
+            objects_to_delete = client.list_objects(bucket_name, prefix=prefix, recursive=True)
+            parquet_objects = [obj.object_name for obj in objects_to_delete if obj.object_name.endswith(".csv")]
+
+            for obj_name in parquet_objects:
+                client.remove_object(bucket_name, obj_name)
+                print(f">> Deleted existing chunk: {obj_name}")
+
+            if not parquet_objects:
+                print(">> No existing csv chunks found to delete.")
+
+        except S3Error as err:
+            print(f"!! MinIO S3Error while deleting csv chunks: {err}")
+            traceback.print_exc()
+            raise
+
+        except Exception as e:
+            print(f"!! Unexpected error while deleting parquet chunks: {e}")
+            traceback.print_exc()
+            raise
+
     
     def upload_file_to_minio(self, client, bucket_name: str, object_name: str, local_file_path: str):
         try:
