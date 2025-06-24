@@ -28,6 +28,10 @@ class ValidationHelper:
         return series.between(0, 500)
     
 
+    def temperature_range(self, series: pd.Series):
+        return series.fillna(0).between(-50, 150)
+
+
     def negative_precipitation(self, series):
         return series >= 0
     
@@ -67,6 +71,9 @@ class ValidationHelper:
             logger.error(f"!! Failed non_negative validation: {e}")
             return pd.Series([False] * len(series))
 
+    def positive_integer(self, series: pd.Series):
+        return pd.to_numeric(series, errors='coerce').fillna(0).astype(int) > 0
+    
 
     def validate_latitude(self, series):
         return series.between(-90, 90)
@@ -85,10 +92,22 @@ class ValidationHelper:
 
     def non_negative_pd(self, series: pd.Series) -> pd.Series:
         return series >= 0
+    
+
+    def non_negatives(self, series: pd.Series):
+        return pd.to_numeric(series, errors='coerce').fillna(0) >= 0
+
+
+    def is_binary(self, series: pd.Series):
+        return series.isin([0, 1])
 
 
     def checking_date_format_pd(self, series: pd.Series) -> pd.Series:
         return series.apply(lambda x: isinstance(x, pd.Timestamp))
+    
+
+    def checking_date_formats(self, series: pd.Series):
+        return pd.to_datetime(series, errors='coerce').notna()
     
 
     def json_dumps_if_dict(self, series: pd.Series) -> pd.Series:

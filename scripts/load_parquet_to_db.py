@@ -31,21 +31,36 @@ class ParquetLoader:
     
     def loader(self):
         try:
-            logger.info(f"Reading parquet chunks from {self.bucket_staging}, path {self.minio_path}")
-            chunk_paths = self.helper.read_parquet_chunks(self.bucket_staging, self.minio_creds, self.folder_name, self.file_name)
+            if self.folder_name == "yelp":
+                logger.info(f"Reading parquet chunks from {self.bucket_staging}, path {self.minio_path}")
+                chunk_paths = self.helper.read_parquet_chunks(self.bucket_staging, self.minio_creds, self.folder_name, self.file_name)
 
-            conn = self.helper.create_postgre_conn(self.db_creds)
-            for chunk_path in chunk_paths:
-                logger.info(f">> Processing chunk: {chunk_path}")
-                resp = self.minio_client.get_object(self.bucket_staging, chunk_path)
-                byte_data = BytesIO(resp.read())
-                df_chunk = pd.read_parquet(byte_data)
+                conn = self.helper.create_postgre_conn(self.db_creds)
+                for chunk_path in chunk_paths:
+                    logger.info(f">> Processing chunk: {chunk_path}")
+                    resp = self.minio_client.get_object(self.bucket_staging, chunk_path)
+                    byte_data = BytesIO(resp.read())
+                    df_chunk = pd.read_parquet(byte_data)
 
+                    with conn.cursor() as cursor:
+                        self.helper.check_and_create_table(conn, self.file_name, self.folder_name, df_chunk)
+                    self.helper.upsert_data_into_table(conn, self.file_name, self.folder_name, df_chunk)
+
+                    del df_chunk
+                    gc.collect()
+
+                    resp.close()
+                    resp.release_conn()
+            else:
+                logger.info(f"Reading Parquet from {self.bucket_staging}, path {self.minio_path}")
+                df = self.helper.read_parquet(self.bucket_staging, self.minio_creds, self.folder_name, self.file_name)
+
+                conn = self.helper.create_postgre_conn(self.db_creds)
                 with conn.cursor() as cursor:
-                    self.helper.check_and_create_table(conn, self.file_name, self.folder_name, df_chunk)
-                self.helper.upsert_data_into_table(conn, self.file_name, self.folder_name, df_chunk)
-
-                del df_chunk
+                    self.helper.check_and_create_table(conn, self.file_name, self.folder_name, df)
+                    self.helper.upsert_data_into_table(conn, self.file_name, self.folder_name, df)
+                
+                del df
                 gc.collect()
 
                 resp.close()

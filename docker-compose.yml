@@ -57,7 +57,6 @@ services:
       - ./airflow/plugins:/opt/airflow/plugins
       - ./:/opt/project:delegated
       - /var/run/docker.sock:/var/run/docker.sock
-      - ./dbt:/usr/app
     working_dir: /opt/project
     ports:
       - "8083:8080"
@@ -78,18 +77,6 @@ services:
       MB_DB_USER: airflow
       MB_DB_PASS: airflow
       MB_DB_HOST: postgres
-    depends_on:
-      - postgres
-
-  dbt:
-    image: ghcr.io/dbt-labs/dbt-postgres:1.7.4
-    container_name: dbt
-    volumes:
-      - ./dbt:/usr/app
-      - ./profiles:/root/.dbt
-    working_dir: /usr/app
-    environment:
-      DBT_PROFILES_DIR: /root/.dbt
     depends_on:
       - postgres
 

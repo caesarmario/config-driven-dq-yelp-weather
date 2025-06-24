@@ -511,3 +511,91 @@ class ETLHelper:
             logger.error(f"!! Error during upsert for {schema}.{table_name}: {e}")
             raise
             
+
+    def execute_sql_to_fact_table(self, conn, schema: str, table_name: str, sql_path: str):
+        try:
+            exec_date = datetime.now().strftime("%Y%m%d_%H%M%S")
+            temp_table_name = f"{table_name}_temp_{exec_date}"
+
+            # Load SQL & Config
+            with open(sql_path, 'r') as f:
+                sql_content = f.read()
+
+            config = self.load_config(schema, f"{table_name}_config")
+            reserved_keywords = self.load_reserved_keywords()
+
+            with conn.cursor() as cursor:
+                # Ensure schema exists
+                cursor.execute(sql.SQL("SELECT EXISTS (SELECT 1 FROM information_schema.schemata WHERE schema_name = %s)"), [schema])
+                schema_exists = cursor.fetchone()[0]
+                if not schema_exists:
+                    cursor.execute(sql.SQL("CREATE SCHEMA {};").format(sql.Identifier(schema)))
+                    conn.commit()
+                    logger.info(f"> Schema {schema} created")
+                else:
+                    logger.info(f"> Schema {schema} already exists")
+
+                # Check if main table exists
+                cursor.execute(sql.SQL("SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = %s AND table_schema = %s)"), [table_name, schema])
+                table_exists = cursor.fetchone()[0]
+
+                if not table_exists:
+                    # Build CREATE TABLE for main table
+                    columns = []
+                    for column, meta in config.items():
+                        col_name = f'"{column}"' if column.lower() in reserved_keywords else column
+                        pg_type = self._map_dtype_to_postgres_from_config(meta["dtype"])
+                        columns.append(f"{col_name} {pg_type}")
+
+                    create_table_sql = f"CREATE TABLE {schema}.{table_name} ({', '.join(columns)});"
+                    cursor.execute(create_table_sql)
+                    conn.commit()
+                    logger.info(f"> Main table {schema}.{table_name} created")
+                else:
+                    logger.info(f"> Main table {schema}.{table_name} already exists")
+
+                # Create temp table
+                temp_columns = []
+                for column, meta in config.items():
+                    col_name = f'"{column}"' if column.lower() in reserved_keywords else column
+                    pg_type = self._map_dtype_to_postgres_from_config(meta["dtype"])
+                    temp_columns.append(f"{col_name} {pg_type}")
+
+                create_temp_sql = f"CREATE TABLE {schema}.{temp_table_name} ({', '.join(temp_columns)});"
+                cursor.execute(create_temp_sql)
+                logger.info(f"> Temp table {temp_table_name} created")
+
+                # Insert data into temp table using external SQL
+                insert_temp_sql = f"""
+                    INSERT INTO {schema}.{temp_table_name}
+                    {sql_content.strip()}
+                """
+                cursor.execute(insert_temp_sql)
+                logger.info(f"> Inserted data into temp table {temp_table_name}")
+
+                # Truncate main table before insert
+                cursor.execute(sql.SQL("TRUNCATE TABLE {}.{};").format(
+                    sql.Identifier(schema), sql.Identifier(table_name)
+                ))
+                logger.info(f"> Truncated main table {schema}.{table_name}")
+
+                # Insert from temp to main
+                insert_main_sql = f"""
+                    INSERT INTO {schema}.{table_name}
+                    SELECT * FROM {schema}.{temp_table_name};
+                """
+                cursor.execute(insert_main_sql)
+                logger.info(f"> Moved data from temp to main table")
+
+                # Drop temp table
+                cursor.execute(sql.SQL("DROP TABLE IF EXISTS {}.{};").format(
+                    sql.Identifier(schema), sql.Identifier(temp_table_name)
+                ))
+                logger.info(f"> Dropped temp table {temp_table_name}")
+
+            conn.commit()
+            logger.info(f">> Fact table {schema}.{table_name} successfully refreshed.")
+
+        except Exception as e:
+            logger.error(f"!! Error executing SQL to fact table {schema}.{table_name}: {e}")
+            raise

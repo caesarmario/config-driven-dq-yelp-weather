@@ -1,0 +1,59 @@
+{
+    "business_id": {
+        "col_csv": "business_id",
+        "dtype": "STRING",
+        "validation": ["not_null"]
+    },
+    "checkin_date": {
+        "col_csv": "checkin_date",
+        "dtype": "DATE",
+        "transformation": "transform_to_date",
+        "validation": ["not_null", "checking_date_formats"]
+    },
+    "checkin_count": {
+        "col_csv": "checkin_count",
+        "dtype": "INTEGER",
+        "transformation": "to_numeric",
+        "validation": ["not_null", "positive_integer"]
+    },
+    "city": {
+        "col_csv": "city",
+        "dtype": "STRING",
+        "validation": ["not_null"]
+    },
+    "state": {
+        "col_csv": "state",
+        "dtype": "STRING",
+        "validation": ["not_null"]
+    },
+    "is_open": {
+        "col_csv": "is_open",
+        "dtype": "INTEGER",
+        "transformation": "to_numeric",
+        "validation": ["is_binary"]
+    },
+    "temperature_min": {
+        "col_csv": "temperature_min",
+        "dtype": "FLOAT",
+        "transformation": "to_numeric",
+        "validation": ["temperature_range"]
+    },
+    "temperature_max": {
+        "col_csv": "temperature_max",
+        "dtype": "FLOAT",
+        "transformation": "to_numeric",
+        "validation": ["temperature_range"]
+    },
+    "precipitation": {
+        "col_csv": "precipitation",
+        "dtype": "FLOAT",
+        "transformation": "to_numeric",
+        "validation": ["precipitation_range", "non_negatives"]
+    },
+    "load_dt": {
+        "col_csv": "load_dt",
+        "dtype": "TIMESTAMP",
+        "transformation": null,
+        "validation": null
+    }
+}
