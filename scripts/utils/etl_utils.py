@@ -510,3 +510,4 @@ class ETLHelper:
         except Exception as e:
             logger.error(f"!! Error during upsert for {schema}.{table_name}: {e}")
             raise
+            

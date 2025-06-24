@@ -1,0 +1,19 @@
+name: "tech_test_case"
+version: "1.0.0"
+config-version: 2
+
+profile: "default"
+
+model-paths: ["models"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+seed-paths: ["seeds"]
+snapshot-paths: ["snapshots"]
+
+target-path: "target"
+clean-targets: ["target", "dbt_modules"]
+
+models:
+  tech_test_case:
+    +materialized: view
+    +schema: public
