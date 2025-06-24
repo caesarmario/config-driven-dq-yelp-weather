@@ -189,6 +189,12 @@ with TaskGroup("process_yelp", dag=dag) as process_group:
 
         # process_user >> merge_user
 
+# Trigger DAG
+trigger_loader = TriggerDagRunOperator(
+    task_id="trigger_load_parquet",
+    trigger_dag_id="03_dag_load_parquet_to_db",
+    dag=dag
+)
 
 # Dummy End
 task_end = EmptyOperator(
@@ -197,4 +203,4 @@ task_end = EmptyOperator(
 )
 
 # -- Define execution order
-task_start >> process_group >> task_end
+task_start >> process_group >> trigger_loader >> task_end
