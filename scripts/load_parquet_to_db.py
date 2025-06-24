@@ -8,6 +8,8 @@ import argparse
 import json
 import gc
 
+from io import BytesIO
+
 from utils.etl_utils import ETLHelper
 from utils.logging_utils import logger
 
@@ -29,22 +31,28 @@ class ParquetLoader:
     
     def loader(self):
         try:
-            logger.info(f"Reading Parquet from {self.bucket_staging}, path {self.minio_path}")
-            df = self.helper.read_parquet(self.bucket_staging, self.minio_creds, self.folder_name, self.file_name)
-        except Exception as e:
-            logger.error(f"!! Error reading Parquet from {self.bucket_staging} - {e}")
+            logger.info(f"Reading parquet chunks from {self.bucket_staging}, path {self.minio_path}")
+            chunk_paths = self.helper.read_parquet_chunks(self.bucket_staging, self.minio_creds, self.folder_name, self.file_name)
 
-        try:
             conn = self.helper.create_postgre_conn(self.db_creds)
-            with conn.cursor() as cursor:
-                self.helper.check_and_create_table(conn, self.file_name, self.folder_name, df)
-                self.helper.upsert_data_into_table(conn, self.file_name, self.folder_name, df)
-            
-            del df
-            gc.collect()
+            for chunk_path in chunk_paths:
+                logger.info(f">> Processing chunk: {chunk_path}")
+                resp = self.minio_client.get_object(self.bucket_staging, chunk_path)
+                byte_data = BytesIO(resp.read())
+                df_chunk = pd.read_parquet(byte_data)
+
+                with conn.cursor() as cursor:
+                    self.helper.check_and_create_table(conn, self.file_name, self.folder_name, df_chunk)
+                self.helper.upsert_data_into_table(conn, self.file_name, self.folder_name, df_chunk)
+
+                del df_chunk
+                gc.collect()
+
+                resp.close()
+                resp.release_conn()
 
         except Exception as e:
-            logger.error(f"!! Error when merging data to {self.file_name} table - {e}")
+            logger.error(f"!! Error when processing parquet chunks for {self.file_name}: {e}")
 
 
 def main():

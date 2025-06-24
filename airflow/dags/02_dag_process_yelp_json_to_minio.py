@@ -14,7 +14,7 @@ from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 import subprocess
 from datetime import datetime, timedelta
 
-from utils.email_utils import send_email_alert
+# from utils.email_utils import send_email_alert
 
 # -- DAG-level settings
 job_name        = "process_yelp_json_to_minio"
@@ -90,16 +90,16 @@ with TaskGroup("process_yelp", dag=dag) as process_group:
             dag=dag,
         )
 
-        merge_tip = PythonOperator(
-            task_id="merge_tip",
-            python_callable=run_merger,
-            op_kwargs={
-                "file_name": "tip",
-            },
-            dag=dag,
-        )
+        # merge_tip = PythonOperator(
+        #     task_id="merge_tip",
+        #     python_callable=run_merger,
+        #     op_kwargs={
+        #         "file_name": "tip",
+        #     },
+        #     dag=dag,
+        # )
 
-        process_tip >> merge_tip
+        # process_tip >> merge_tip
 
     
     with TaskGroup("checkin_group", tooltip="Process and merge checkin data") as checkin_group:
@@ -112,16 +112,16 @@ with TaskGroup("process_yelp", dag=dag) as process_group:
             dag=dag,
         )
 
-        merge_checkin = PythonOperator(
-            task_id="merge_checkin",
-            python_callable=run_merger,
-            op_kwargs={
-                "file_name": "checkin",
-            },
-            dag=dag,
-        )
+        # merge_checkin = PythonOperator(
+        #     task_id="merge_checkin",
+        #     python_callable=run_merger,
+        #     op_kwargs={
+        #         "file_name": "checkin",
+        #     },
+        #     dag=dag,
+        # )
 
-        process_checkin >> merge_checkin
+        # process_checkin >> merge_checkin
 
 
     with TaskGroup("business_group", tooltip="Process and merge business data") as business_group:
@@ -134,16 +134,16 @@ with TaskGroup("process_yelp", dag=dag) as process_group:
             dag=dag,
         )
 
-        merge_business = PythonOperator(
-            task_id="merge_business",
-            python_callable=run_merger,
-            op_kwargs={
-                "file_name": "business",
-            },
-            dag=dag,
-        )
+        # merge_business = PythonOperator(
+        #     task_id="merge_business",
+        #     python_callable=run_merger,
+        #     op_kwargs={
+        #         "file_name": "business",
+        #     },
+        #     dag=dag,
+        # )
 
-        process_business >> merge_business
+        # process_business >> merge_business
 
 
     with TaskGroup("review_group", tooltip="Process and merge review data") as review_group:
@@ -156,16 +156,16 @@ with TaskGroup("process_yelp", dag=dag) as process_group:
             dag=dag,
         )
 
-        merge_review = PythonOperator(
-            task_id="merge_review",
-            python_callable=run_merger,
-            op_kwargs={
-                "file_name": "review",
-            },
-            dag=dag,
-        )
+        # merge_review = PythonOperator(
+        #     task_id="merge_review",
+        #     python_callable=run_merger,
+        #     op_kwargs={
+        #         "file_name": "review",
+        #     },
+        #     dag=dag,
+        # )
 
-        process_review >> merge_review
+        # process_review >> merge_review
 
 
     with TaskGroup("user_group", tooltip="Process and merge user data") as user_group:
@@ -178,16 +178,16 @@ with TaskGroup("process_yelp", dag=dag) as process_group:
             dag=dag,
         )
 
-        merge_user = PythonOperator(
-            task_id="merge_user",
-            python_callable=run_merger,
-            op_kwargs={
-                "file_name": "user",
-            },
-            dag=dag,
-        )
+        # merge_user = PythonOperator(
+        #     task_id="merge_user",
+        #     python_callable=run_merger,
+        #     op_kwargs={
+        #         "file_name": "user",
+        #     },
+        #     dag=dag,
+        # )
 
-        process_user >> merge_user
+        # process_user >> merge_user
 
 
 # Dummy End

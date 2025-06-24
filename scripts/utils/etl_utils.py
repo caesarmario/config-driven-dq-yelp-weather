@@ -233,6 +233,27 @@ class ETLHelper:
                 except Exception:
                     pass
 
+
+    def read_parquet_chunks(self, bucket_name, credentials, folder_name, file_name_prefix):
+        try:
+            minio_client = self.create_minio_conn(credentials)
+            prefix = f"{folder_name}_dataset/{file_name_prefix}/"
+
+            # Dapatkan semua file parquet di prefix tersebut
+            chunk_paths = [
+                obj.object_name for obj in minio_client.list_objects(bucket_name, prefix=prefix, recursive=True)
+                if obj.object_name.endswith(".parquet") and not obj.object_name.endswith(f"{file_name_prefix}.parquet")
+            ]
+
+            if not chunk_paths:
+                raise ValueError(f"No parquet chunks found for {file_name_prefix}")
+
+            return chunk_paths
+
+        except Exception as e:
+            logger.error(f"!! Failed to list parquet chunks from MinIO: {e}")
+            raise
+
     
     def create_postgre_conn(self, db_creds):
         try:
@@ -444,39 +465,34 @@ class ETLHelper:
                 config = self.load_config(schema, f"{table_name}_config")
                 reserved_keywords = self.load_reserved_keywords()
 
-                # Create column definitions from config
+                # Create column definitions
                 columns = []
                 for column, column_config in config.items():
                     column_name = f'"{column}"' if column.lower() in reserved_keywords else column
                     column_data_type = column_config['dtype']
                     pg_data_type = self._map_dtype_to_postgres_from_config(column_data_type)
                     columns.append(f"{column_name} {pg_data_type}")
-                columns.append("load_dt TIMESTAMP")  # Add load_dt column
+                columns.append("load_dt TIMESTAMP")
 
-                # Drop temp table if exists
-                cursor.execute(f"DROP TABLE IF EXISTS {schema}.{temp_table_name};")
-                conn.commit()
+                delete_temp_table_query = f"DROP TABLE IF EXISTS {schema}.{temp_table_name};"
+                cursor.execute(delete_temp_table_query)
+                logger.info(f"> Dropping existing temp table: {delete_temp_table_query.strip()}")
 
-                # Create temp table
                 create_temp_table_query = f"CREATE TABLE {schema}.{temp_table_name} ({', '.join(columns)});"
-                logger.info(f"> Create temp table query: {create_temp_table_query}")
+                logger.info(f"> Creating temp table: {create_temp_table_query.strip()}")
                 cursor.execute(create_temp_table_query)
-                conn.commit()
 
                 # Insert into temp table
                 insert_query = f"INSERT INTO {schema}.{temp_table_name} ({', '.join(df.columns)}) VALUES %s"
                 insert_values = [tuple(row) for row in df.values]
+                logger.info("> Inserting into temp table...")
                 execute_values(cursor, insert_query, insert_values)
-                conn.commit()
-                logger.info(f"> Inserted data into temporary table {schema}.{temp_table_name}.")
 
-                # Truncate old data from main table by load_dt
-                truncate_query = f"DELETE FROM {schema}.{table_name} WHERE load_dt < %s"
-                cursor.execute(truncate_query, [load_dt])
-                conn.commit()
-                logger.info(f"> Old data from {schema}.{table_name} with load_dt < {load_dt} deleted.")
+                delete_query = f"DELETE FROM {schema}.{table_name} WHERE load_dt < %s"
+                logger.info(f"> Deleting old records for load_dt < {load_dt}")
+                cursor.execute(delete_query, [load_dt])
 
-                # Insert into main table
+                # Insert from temp to main table
                 column_list = ", ".join(df.columns)
                 insert_main_query = f"""
                     INSERT INTO {schema}.{table_name} ({column_list})
@@ -484,14 +500,13 @@ class ETLHelper:
                     FROM {schema}.{temp_table_name};
                 """
                 cursor.execute(insert_main_query)
-                conn.commit()
-                logger.info(f">> Data inserted into {schema}.{table_name} from temporary table.")
 
                 # Drop temp table
                 cursor.execute(f"DROP TABLE IF EXISTS {schema}.{temp_table_name};")
-                conn.commit()
-                logger.info(f"> Temporary table {schema}.{temp_table_name} dropped.")
+
+            conn.commit()
+            logger.info(f">> Upsert process complete for {schema}.{table_name}")
 
         except Exception as e:
-            logger.error(f"!! Error during table upsert process for {schema}.{table_name}: {e}")
+            logger.error(f"!! Error during upsert for {schema}.{table_name}: {e}")
             raise

@@ -15,7 +15,7 @@ from airflow.sensors.external_task import ExternalTaskSensor
 import subprocess
 from datetime import datetime, timedelta
 
-from utils.email_utils import send_email_alert
+# from utils.email_utils import send_email_alert
 
 # -- DAG-level settings
 job_name        = "process_weather_csv_to_minio"

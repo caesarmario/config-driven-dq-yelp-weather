@@ -14,8 +14,6 @@ from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 import subprocess
 from datetime import datetime, timedelta
 
-# from utils.email_utils import send_email_alert
-
 # -- DAG-level settings
 job_name        = "extract_yelp_to_minio"
 
@@ -64,37 +62,17 @@ task_start = EmptyOperator(
 
 # Extract & transform JSON to Parquet files
 with TaskGroup("extract_yelp", dag=dag) as extract_group:
-    extract_yelp_dataset = PythonOperator(
-        task_id="yelp_dataset",
+    {% for name in processes %}
+    extract_{{ name }} = PythonOperator(
+        task_id="{{ name }}",
         python_callable=run_extractor,
         op_kwargs={
-            "file_name": "yelp_dataset",
+            "file_name": "{{ name }}",
         },
         dag=dag,
     )
     
-    # extract_yelp_photos = PythonOperator(
-    #     task_id="yelp_photos",
-    #     python_callable=run_extractor,
-    #     op_kwargs={
-    #         "file_name": "yelp_photos",
-    #     },
-    #     dag=dag,
-    # )
-    
-
-# Trigger downstream DAGs
-trigger_weather_csv = TriggerDagRunOperator(
-    task_id="trigger_weather_csv_dag",
-    trigger_dag_id="02_dag_process_weather_csv_to_minio",
-    dag=dag,
-)
-
-trigger_yelp_json = TriggerDagRunOperator(
-    task_id="trigger_yelp_json_dag",
-    trigger_dag_id="02_dag_process_yelp_json_to_minio",
-    dag=dag,
-)
+    {% endfor %}
 
 # Dummy End
 task_end = EmptyOperator(
@@ -103,5 +81,4 @@ task_end = EmptyOperator(
 )
 
 # -- Define execution order
-task_start >> extract_group
-extract_group >> [trigger_weather_csv, trigger_yelp_json] >> task_end
+task_start >> extract_group >> task_end

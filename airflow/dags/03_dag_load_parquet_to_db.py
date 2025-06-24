@@ -14,7 +14,7 @@ from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 import subprocess
 from datetime import datetime, timedelta
 
-from utils.email_utils import send_email_alert
+# from utils.email_utils import send_email_alert
 
 # -- DAG-level settings
 job_name        = "load_parquet_to_db"
@@ -140,7 +140,7 @@ with TaskGroup("loader_group", dag=dag) as loader_group:
             dag=dag,
         )
 
-        load_tip >> load_checkin >> load_business >> load_review >> load_user
+        load_business >> load_tip >> load_checkin >> load_user >> load_review
     
     weather_group >> yelp_group
 
